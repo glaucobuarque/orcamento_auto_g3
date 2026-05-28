@@ -4,7 +4,6 @@ import io
 import os
 import tempfile
 from pathlib import Path
-from docx2pdf import convert
 
 st.set_page_config(page_title="Gerador de Propostas - G3 Energias", layout="wide")
 
