@@ -3,6 +3,7 @@ from docxtpl import DocxTemplate
 import io
 import os
 import tempfile
+import math
 from pathlib import Path
 
 st.set_page_config(page_title="Gerador de Propostas - G3 Energias", layout="wide")
@@ -33,7 +34,7 @@ with col4:
 
 with col5:
     tipo_inversor = st.radio("Tipo de Inversor", ["Microinversor", "Inversor String (Parede)"])
-    q_inversores = int(qtd_paineis / 4) if tipo_inversor == "Microinversor" else 1
+    q_inversores = int(math.ceil(qtd_paineis / 4)) if tipo_inversor == "Microinversor" else 1
     qtd_inversores = st.number_input("Qtd. Inversores", value=q_inversores, step=1)
 
 with col6:
@@ -52,7 +53,7 @@ with col_pr1:
 # Lógica dos 3 itens:
 item_1 = qtd_paineis * 900
 item_2 = (qtd_inversores * 1000) if tipo_inversor == "Microinversor" else (qtd_inversores * 2500)
-item_3 = (qtd_paineis / 4.0) * 180  # Cálculo proporcional de fixação
+item_3 = q_inversores * 180  # Cálculo proporcional de fixação
 
 custo_base_hardware = item_1 + item_2 + item_3
 custo_total = custo_base_hardware * (100 + lucro_base)/100.0
