@@ -34,7 +34,7 @@ with col4:
 
 with col5:
     tipo_inversor = st.radio("Tipo de Inversor", ["Microinversor", "Inversor String (Parede)"])
-    q_inversores = math.ceil(int(qtd_paineis / 4)) if tipo_inversor == "Microinversor" else 1
+    q_inversores = math.ceil(qtd_paineis / 4) if tipo_inversor == "Microinversor" else 1
     qtd_inversores = st.number_input("Qtd. Inversores", value=q_inversores, step=1)
 
 with col6:
@@ -52,11 +52,11 @@ with col_pr1:
 
 # Lógica dos 3 itens:
 item_1 = qtd_paineis * 900
-item_2 = (qtd_inversores * 1000) if tipo_inversor == "Microinversor" else (qtd_inversores * 2500)
-item_3 = (qtd_paineis / 4.0) * 180  # Cálculo proporcional de fixação
+item_2 = (qtd_inversores * 1000) if tipo_inversor == "Microinversor" else (math.ceil(qtd_paineis / 4) * 900)
+item_3 = math.ceil(qtd_paineis / 4) * 180  # Cálculo proporcional de fixação
 
 custo_base_hardware = item_1 + item_2 + item_3
-custo_total = custo_base_hardware / (100.0 - lucro_base)
+custo_total = custo_base_hardware / ((100.0 - lucro_base)/100.0)
 
 with col_pr2:
     st.number_input("Custo de Hardware (Base)", value=float(f"{custo_base_hardware:.2f}"), disabled=True)
@@ -215,7 +215,7 @@ if st.button("🚀 Confirmar e Gerar Proposta (.html)"):
             )
 
             with st.expander("👁️ Pré-visualizar proposta"):
-                st.components.v1.html(html_final, height=800, scrolling=True)
+                st.iframe(html_final, height=800, scrolling=True)
 
         except Exception as e:
             st.error(f"Erro ao processar o template HTML: {e}")
