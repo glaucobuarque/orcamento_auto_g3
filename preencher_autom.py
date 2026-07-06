@@ -14,10 +14,10 @@ st.subheader("1. Dados Básicos e Consumo")
 col1, col2, col3 = st.columns(3)
 with col1:
     nome_cliente = st.text_input("Nome do Cliente", value="Cliente")
-    numero_proposta = st.text_input("Número da Proposta", value=f"00001/{date.today().year}")
+    numero_proposta = st.text_input("Número da Proposta", value=f"0{date.today().day}-{date.today().month}/{date.today().year}")
     tipo_telhado = st.selectbox("Tipo de Telhado", ["Metálico", "Cerâmico", "Fibrocimento"])
 with col2:
-    consumo_medio = st.number_input("Consumo Médio do Cliente (kWh/mês)", value=300, step=50)
+    consumo_medio = st.number_input("Consumo Médio do Cliente (kWh/mês)", value=300, step=75)
 with col3:
     valor_kwh = st.number_input("Tarifa Autoconsumo (R$/kWh)", value=1.14)
     valor_kwh_desc = st.number_input("Tarifa Injetada (R$/kWh)", value=0.84)
@@ -33,7 +33,7 @@ with col4:
 
 with col5:
     tipo_inversor = st.radio("Tipo de Inversor", ["Microinversor", "Inversor String (Parede)"])
-    q_inversores = int(qtd_paineis / 4) if tipo_inversor == "Microinversor" else 1
+    q_inversores = int(qtd_paineis // 4) if tipo_inversor == "Microinversor" else 1
     qtd_inversores = st.number_input("Qtd. Inversores", value=q_inversores, step=1)
 
 with col6:
@@ -55,7 +55,7 @@ item_2 = (qtd_inversores * 1000) if tipo_inversor == "Microinversor" else (qtd_i
 item_3 = (qtd_paineis / 4.0) * 180  # Cálculo proporcional de fixação
 
 custo_base_hardware = item_1 + item_2 + item_3
-custo_total = custo_base_hardware * (100 + lucro_base) / 100.0
+custo_total = custo_base_hardware / lucro_base * 100.0
 
 with col_pr2:
     st.number_input("Custo de Hardware (Base)", value=float(f"{custo_base_hardware:.2f}"), disabled=True)
