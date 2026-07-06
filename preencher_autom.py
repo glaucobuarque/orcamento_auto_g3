@@ -3,6 +3,7 @@ from jinja2 import Template
 from datetime import date
 import io
 from pathlib import Path
+import math
 
 st.set_page_config(page_title="Gerador de Propostas - G3 Energias", layout="wide")
 
@@ -33,7 +34,7 @@ with col4:
 
 with col5:
     tipo_inversor = st.radio("Tipo de Inversor", ["Microinversor", "Inversor String (Parede)"])
-    q_inversores = int(qtd_paineis / 4)+1 if tipo_inversor == "Microinversor" else 1
+    q_inversores = math.ceil(int(qtd_paineis / 4)) if tipo_inversor == "Microinversor" else 1
     qtd_inversores = st.number_input("Qtd. Inversores", value=q_inversores, step=1)
 
 with col6:
@@ -55,7 +56,7 @@ item_2 = (qtd_inversores * 1000) if tipo_inversor == "Microinversor" else (qtd_i
 item_3 = (qtd_paineis / 4.0) * 180  # Cálculo proporcional de fixação
 
 custo_base_hardware = item_1 + item_2 + item_3
-custo_total = custo_base_hardware / lucro_base * 100.0
+custo_total = custo_base_hardware / (100.0 - lucro_base)
 
 with col_pr2:
     st.number_input("Custo de Hardware (Base)", value=float(f"{custo_base_hardware:.2f}"), disabled=True)
