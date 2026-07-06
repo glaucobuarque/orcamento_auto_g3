@@ -1,9 +1,7 @@
 import streamlit as st
-from docxtpl import DocxTemplate
+from jinja2 import Template
+from datetime import date
 import io
-import os
-import tempfile
-import math
 from pathlib import Path
 
 st.set_page_config(page_title="Gerador de Propostas - G3 Energias", layout="wide")
@@ -16,6 +14,7 @@ st.subheader("1. Dados Básicos e Consumo")
 col1, col2, col3 = st.columns(3)
 with col1:
     nome_cliente = st.text_input("Nome do Cliente", value="Cliente")
+    numero_proposta = st.text_input("Número da Proposta", value=f"00001/{date.today().year}")
     tipo_telhado = st.selectbox("Tipo de Telhado", ["Metálico", "Cerâmico", "Fibrocimento"])
 with col2:
     consumo_medio = st.number_input("Consumo Médio do Cliente (kWh/mês)", value=300, step=50)
@@ -27,14 +26,14 @@ st.subheader("2. Parâmetros de Dimensionamento & Engenharia")
 col4, col5, col6 = st.columns(3)
 with col4:
     qtd_paineis = st.number_input("Qtd. Módulos", value=int(consumo_medio / 75.0), step=1)
-    
+
     # CAMPO DESABILITADO PARA EDIÇÃO
     area_estimada = qtd_paineis * 2.7
     area_sistema = st.number_input("Área Total Calculada (m²)", value=float(f"{area_estimada:.2f}"), disabled=True)
 
 with col5:
     tipo_inversor = st.radio("Tipo de Inversor", ["Microinversor", "Inversor String (Parede)"])
-    q_inversores = int(math.ceil(qtd_paineis / 4)) if tipo_inversor == "Microinversor" else 1
+    q_inversores = int(qtd_paineis / 4) if tipo_inversor == "Microinversor" else 1
     qtd_inversores = st.number_input("Qtd. Inversores", value=q_inversores, step=1)
 
 with col6:
@@ -53,10 +52,10 @@ with col_pr1:
 # Lógica dos 3 itens:
 item_1 = qtd_paineis * 900
 item_2 = (qtd_inversores * 1000) if tipo_inversor == "Microinversor" else (qtd_inversores * 2500)
-item_3 = q_inversores * 180  # Cálculo proporcional de fixação
+item_3 = (qtd_paineis / 4.0) * 180  # Cálculo proporcional de fixação
 
 custo_base_hardware = item_1 + item_2 + item_3
-custo_total = custo_base_hardware * (100 + lucro_base)/100.0
+custo_total = custo_base_hardware * (100 + lucro_base) / 100.0
 
 with col_pr2:
     st.number_input("Custo de Hardware (Base)", value=float(f"{custo_base_hardware:.2f}"), disabled=True)
@@ -113,8 +112,10 @@ st.write("---")
 st.subheader("📊 Resultados Calculados em Tempo Real")
 m1, m2, m3, m4 = st.columns(4)
 
+
 def fmt_moeda_tela(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
 
 m1.metric("Custo Total de Venda", fmt_moeda_tela(custo_total))
 m2.metric("Economia Mensal Estimada", fmt_moeda_tela(economia_mensal))
@@ -123,103 +124,97 @@ m4.metric("Tempo de Retorno (Payback)", payback_texto)
 st.write("---")
 
 
-# --- BOTÃO DE GERAÇÃO DE ARQUIVO DOCX E PDF ---
-if st.button("🚀 Confirmar e Gerar Documentos (.docx e .pdf)"):
-    with st.spinner("Gerando documentos, por favor aguarde..."):
+# --- BOTÃO DE GERAÇÃO DO HTML DA PROPOSTA ---
+if st.button("🚀 Confirmar e Gerar Proposta (.html)"):
+    with st.spinner("Gerando proposta, por favor aguarde..."):
         try:
-            caminho_template = Path(__file__).parent / "template_proposta.docx"
-            doc = DocxTemplate(caminho_template)
-            
-            if tipo_inversor == "Microinversor":
-                desc_inversor = "MICRO INVERSOR MONOFÁSICO HOMOLOGADO - COM ACESSÓRIOS"
-            else:
-                desc_inversor = "INVERSOR STRING CENTRAL HOMOLOGADO - COM ACESSÓRIOS"
+            caminho_template = Path(__file__).parent / "Modelo_Solar_template.html"
+            template_html = caminho_template.read_text(encoding="utf-8")
+            template = Template(template_html)
 
             def fmt_moeda(valor):
                 return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+            def fmt_num(valor, casas=2):
+                return f"{valor:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+            # --- Descrição do inversor e montagem da lista de equipamentos ---
+            if tipo_inversor == "Microinversor":
+                desc_inversor = "Micro Inversor Monofásico Homologado — com acessórios"
+            else:
+                desc_inversor = "Inversor String Central Homologado — com acessórios"
+
+            qtd_string_cc = 1 if tipo_inversor == "Inversor String (Parede)" else 0
+            qtd_kit4mod = int(round(qtd_paineis / 4))
+
+            itens_brutos = [
+                ("Módulo Fotovoltaico 620W Bifacial Frame Composto N-Type", f"{int(qtd_paineis)} un"),
+                (desc_inversor, f"{int(qtd_inversores)} un"),
+            ]
+            if qtd_string_cc:
+                itens_brutos.append(("String Box CC c/ DPS", f"{int(qtd_string_cc)} un"))
+            itens_brutos += [
+                ("String Box CA c/ DJ DPS", "1 un"),
+                ("Cabo Solar CC Vermelho 4,00 mm² — 25 m", "4 un"),
+                ("Cabo Solar CC Preto 4,00 mm² — 25 m", "4 un"),
+                ("Par Conector MC4 para Sistema Fotovoltaico (cabo 2,5/4/6 mm²)", f"{int(qtd_paineis)} un"),
+                ("Placa de Geração Própria Metálica Padrão", "1 un"),
+                ("Material de Infraestrutura (tubulação e fiação CA)", "—"),
+                (f"Kit Inst. 04 Módulos 620W {tipo_telhado} — com 4 Perfil 2,4 m H38", f"{int(qtd_kit4mod)} un"),
+            ]
+
+            romanos = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"]
+            equipamentos = [
+                {"num": romanos[i], "desc": desc, "qty": qty}
+                for i, (desc, qty) in enumerate(itens_brutos)
+            ]
+
             contexto = {
                 "nome_cliente": nome_cliente,
-                "ger_sistema": f"{ger_sistema:.0f}",
-                "PP_SISTEMA": f"{((qtd_paineis * 620)/1000):.2f}".replace(".", ","), 
+                "numero_proposta": numero_proposta,
+                "data_proposta": date.today().strftime("%d/%m/%Y"),
+
+                "potencia_kwp": fmt_num((qtd_paineis * 620) / 1000, 2),
                 "producao_mensal": f"{ger_sistema:.0f}",
-                "CONS_MEDIO": f"{consumo_medio:.0f}",
-                "AREA_SISTEMA": f"{area_sistema:.2f}".replace(".", ","),
-                
-                "qtd_paineis": int(qtd_paineis),
-                "desc_inversor": desc_inversor,
-                "qtd_micros": int(qtd_inversores),
-                "qtd_string_cc": 1 if tipo_inversor == "Inversor String (Parede)" else 0,
-                "qtd_string_ca": 1,
-                "qtd_cabo_vermelho": 4,
-                "qtd_cabo_preto": 4,
-                "qtd_mc4": int(qtd_paineis),
-                "tipo_telhado": tipo_telhado,
-                "qtd_kit4mod": int(round(qtd_paineis / 4)),
-                
-                "VALOR_KWH": f"{valor_kwh:.2f}".replace(".", ","),
-                "VALOR_kwh_descontado": f"{valor_kwh_desc:.2f}".replace(".", ","),
-                "valor_fiob": f"{valor_fiob:.2f}".replace(".", ","),
-                "reajuste_anual_perc": f"{reajuste_anual:.1f}".replace(".", ","),
-                "Cons_instantaneo": f"{cons_instantaneo:.1f}".replace(".", ","),
-                
-                "Economia_media_mensaL_1ano": fmt_moeda(economia_mensal),
+                "consumo_medio": f"{consumo_medio:.0f}",
+                "area_sistema": fmt_num(area_sistema, 2),
+
+                "economia_25anos": fmt_moeda(economia_25anos),
+                "payback_texto": payback_texto,
+                "economia_mensal": fmt_moeda(economia_mensal),
+                "rentab_1ano": fmt_num(rentab_1ano, 2),
+
+                "valor_kwh": fmt_num(valor_kwh, 2),
+                "valor_kwh_desc": fmt_num(valor_kwh_desc, 2),
+                "valor_fiob": fmt_num(valor_fiob, 2),
+                "reajuste_anual": fmt_num(reajuste_anual, 1),
+                "cons_instantaneo": fmt_num(cons_instantaneo, 1),
                 "economia_total_1ano": fmt_moeda(economia_total_1ano),
-                "Rentab_1ano": f"{rentab_1ano:.2f}".replace(".", ","),
-                "RENTAB_1ANO": f"{rentab_1ano:.2f}% a.m.",
-                "Economia_total_25anos": fmt_moeda(economia_25anos),
-                
-                "payback": payback_texto,
-                "Payback": payback_texto,
-                "SELIC": f"{selic:.2f}".replace(".", ","),
-                
-                "CUSTO_TOTAL": fmt_moeda(custo_total),
-                "CUSTO_TOTAL_12X": fmt_moeda(parcela_12x)
+
+                "custo_total": fmt_moeda(custo_total),
+                "parcela_12x": fmt_moeda(parcela_12x),
+
+                "equipamentos": equipamentos,
             }
-            
-            doc.render(contexto)
-            
-            # --- SALVANDO NA MEMÓRIA PARA O DOCX ---
-            buffer_docx = io.BytesIO()
-            doc.save(buffer_docx)
-            buffer_docx.seek(0)
-            
-            # --- CONVERSÃO PARA PDF ---
-            # Cria um diretório temporário para salvar o arquivo físico e fazer a conversão
-            pdf_criado_com_sucesso = False
-            try:
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    caminho_docx_temp = os.path.join(tmpdir, "temp.docx")
-                    caminho_pdf_temp = os.path.join(tmpdir, "temp.pdf")
-                    
-                    # Salva o arquivo temporário no disco
-                    doc.save(caminho_docx_temp)
-                    
-                    # Converte para PDF (Requer MS Word instalado na máquina)
-                    convert(caminho_docx_temp, caminho_pdf_temp)
-                    
-                    # Lê o PDF gerado de volta para a memória
-                    with open(caminho_pdf_temp, "rb") as pdf_file:
-                        buffer_pdf = io.BytesIO(pdf_file.read())
-                    
-                    pdf_criado_com_sucesso = True
-            except Exception as e_pdf:
-                st.warning(f"O documento DOCX foi gerado, mas ocorreu um erro ao gerar o PDF. Verifique se o Microsoft Word está instalado e fechado. Detalhe: {e_pdf}")
 
-            st.success("✅ Documentos processados com sucesso! Escolha o formato abaixo para baixar.")
-            
-            # Exibe os botões lado a lado
-            col_btn1, col_btn2 = st.columns(2)
-            
-            with col_btn1:
-                st.download_button(
-                    label="📄 Baixar Proposta (.docx)",
-                    data=buffer_docx,
-                    file_name=f"Proposta_G3_Automatizada_{nome_cliente.replace(' ', '_')}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-            
+            html_final = template.render(contexto)
 
+            st.success("✅ Proposta gerada com sucesso! Baixe o HTML abaixo.")
+
+            st.download_button(
+                label="📄 Baixar Proposta (.html)",
+                data=html_final.encode("utf-8"),
+                file_name=f"Proposta_G3_{nome_cliente.replace(' ', '_')}.html",
+                mime="text/html",
+            )
+
+            st.caption(
+                "Abra o arquivo .html baixado em qualquer navegador e clique no botão "
+                "**'Gerar PDF'** (canto inferior direito) para salvar a proposta como PDF."
+            )
+
+            with st.expander("👁️ Pré-visualizar proposta"):
+                st.components.v1.html(html_final, height=800, scrolling=True)
 
         except Exception as e:
-            st.error(f"Erro ao processar arquivo de template: {e}")
+            st.error(f"Erro ao processar o template HTML: {e}")
