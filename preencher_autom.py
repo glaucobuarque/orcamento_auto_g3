@@ -13,7 +13,7 @@ st.title("Gerador de Orçamentos Fotovoltaicos Automatizado ☀️ - G3")
 st.subheader("1. Dados Básicos e Consumo")
 col1, col2, col3 = st.columns(3)
 with col1:
-    nome_cliente = st.text_input("Nome do Cliente", value="Cliente")
+    nome_cliente = st.text_input("Nome do Cliente", value="")
     numero_proposta = st.text_input("Número da Proposta", value=f"0{date.today().day}-{date.today().month}/{date.today().year}")
     tipo_telhado = st.selectbox("Tipo de Telhado", ["Metálico", "Cerâmico", "Fibrocimento"])
 with col2:
@@ -33,7 +33,7 @@ with col4:
 
 with col5:
     tipo_inversor = st.radio("Tipo de Inversor", ["Microinversor", "Inversor String (Parede)"])
-    q_inversores = int(qtd_paineis // 4) if tipo_inversor == "Microinversor" else 1
+    q_inversores = int(qtd_paineis / 4)+1 if tipo_inversor == "Microinversor" else 1
     qtd_inversores = st.number_input("Qtd. Inversores", value=q_inversores, step=1)
 
 with col6:
